@@ -9,6 +9,13 @@ load_dotenv()
 project_root = str(Path.cwd().resolve())
 formatter = MessageFormatter(use_colors=True)
 
+# This function automatically approves permission requests
+async def auto_approve_handler(request):
+    # You can log the request here to see what Claude is doing
+    print(f"[Permission Request] {request.message}")
+    # Return True to authorize the tool usage
+    return True
+
 # async def main():
 #     async for message in query(
 #         prompt="""tell me the weather about Hangzhou""",
@@ -54,5 +61,36 @@ async def main():
     ):
         # if hasattr(message, "result"):
         formatter.format_stream(message)
+
+# async def main():
+#     async for message in query(
+#         prompt="Open example.com and describe what you see",
+#         options=ClaudeAgentOptions(
+#             mcp_servers={
+#                 "playwright": {"command": "npx", "args": ["@playwright/mcp@latest"]}
+#             },
+#             permission_mode="bypassPermissions",
+#         )
+#     ):
+#         formatter.format_stream(message)
+
+# async def main():
+#     session_id = None
+#     # First query: capture the session ID
+#     async for message in query(
+#         prompt="Read the authentication module",
+#         options=ClaudeAgentOptions(allowed_tools=["Read", "Glob"])
+#     ):
+#         if hasattr(message, 'subtype') and message.subtype == 'init':
+#             print(message)
+#             session_id = message.data["session_id"]
+#
+#     # Resume with full context from the first query
+#     async for message in query(
+#         prompt="Now find all places that call it",  # "it" = auth module
+#         options=ClaudeAgentOptions(resume=session_id)
+#     ):
+#         if hasattr(message, "result"):
+#             print(message.result)
 
 asyncio.run(main())
