@@ -73,3 +73,27 @@ class OptionContract:
     # Calculated
     bs_value: float              # Black-Scholes theoretical value
     mispricing: float            # market_price - bs_value
+
+
+@dataclass
+class NewsItem:
+    """A news article from financial sources."""
+    title: str
+    source: str                  # "eastmoney" | "sina" | "gmail"
+    url: str
+    published: date
+    summary: Optional[str] = None
+    sentiment: Optional[str] = None  # "positive" | "negative" | "neutral"
+
+
+@dataclass
+class StrategyRecommendation:
+    """A recommended options trading strategy."""
+    name: str                    # e.g., "Bull Call Spread"
+    type: str                    # "directional" | "volatility" | "income"
+    legs: list                   # List of option legs to trade
+    max_profit: float
+    max_loss: float
+    breakeven: list              # List of breakeven prices
+    rationale: str               # Why this strategy
+    confidence: int              # 1-10

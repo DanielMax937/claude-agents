@@ -102,3 +102,59 @@ def test_option_contract_creation():
     assert opt.iv == 0.25
     assert opt.delta == 0.45
     assert opt.mispricing == 2.0
+
+
+def test_news_item_creation():
+    """NewsItem should store news article info."""
+    from commodity_pipeline.models import NewsItem
+
+    news = NewsItem(
+        title="螺纹钢期货大涨",
+        source="eastmoney",
+        url="https://example.com/news/1",
+        published=date(2024, 12, 30),
+        summary="市场看涨情绪浓厚",
+        sentiment="positive"
+    )
+
+    assert news.title == "螺纹钢期货大涨"
+    assert news.sentiment == "positive"
+
+
+def test_news_item_optional_fields():
+    """NewsItem should allow optional summary and sentiment."""
+    from commodity_pipeline.models import NewsItem
+
+    news = NewsItem(
+        title="Test",
+        source="sina",
+        url="https://example.com",
+        published=date(2024, 12, 30)
+    )
+
+    assert news.summary is None
+    assert news.sentiment is None
+
+
+def test_strategy_recommendation_creation():
+    """StrategyRecommendation should store strategy details."""
+    from commodity_pipeline.models import StrategyRecommendation
+
+    strat = StrategyRecommendation(
+        name="Bull Call Spread",
+        type="directional",
+        legs=[
+            {"action": "buy", "code": "rb2501-C-3500", "qty": 1},
+            {"action": "sell", "code": "rb2501-C-3600", "qty": 1}
+        ],
+        max_profit=5000.0,
+        max_loss=1000.0,
+        breakeven=[3550.0],
+        rationale="Technical signals bullish, IV low",
+        confidence=7
+    )
+
+    assert strat.name == "Bull Call Spread"
+    assert strat.type == "directional"
+    assert len(strat.legs) == 2
+    assert strat.confidence == 7
