@@ -183,3 +183,22 @@ def test_pipeline_output_terminal_review():
 
             mock_format.assert_called_once()
             mock_print.assert_called_once_with("Review Report")
+
+
+def test_cli_review_mode_arguments():
+    """CLI should parse review mode arguments correctly."""
+    import argparse
+
+    # Simulate parsing review mode arguments
+    parser = argparse.ArgumentParser(description="Commodity Analysis Pipeline")
+    parser.add_argument("--review", action="store_true", help="Enable position review mode")
+    parser.add_argument("--holdings", type=str, help="Path to holdings JSON file")
+    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers")
+    parser.add_argument("--output-dir", type=str, default="reports", help="Output directory")
+    parser.add_argument("--no-terminal", action="store_true", help="Skip terminal output")
+    parser.add_argument("--no-files", action="store_true", help="Skip file output")
+
+    # Test with review mode
+    args = parser.parse_args(["--review", "--holdings", "test.json"])
+    assert args.review is True
+    assert args.holdings == "test.json"

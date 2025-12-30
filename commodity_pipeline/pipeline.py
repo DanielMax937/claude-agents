@@ -211,6 +211,7 @@ class Pipeline:
 async def main():
     """CLI entry point."""
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(description="Commodity Analysis Pipeline")
     parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers")
@@ -219,9 +220,27 @@ async def main():
     parser.add_argument("--no-terminal", action="store_true", help="Skip terminal output")
     parser.add_argument("--no-files", action="store_true", help="Skip file output")
 
+    # Review mode arguments
+    parser.add_argument("--review", action="store_true", help="Enable position review mode")
+    parser.add_argument("--holdings", type=str, help="Path to holdings JSON file")
+
     args = parser.parse_args()
 
+    # Load holdings if in review mode
+    holdings = None
+    mode = "discovery"
+    if args.review:
+        mode = "review"
+        if args.holdings:
+            with open(args.holdings, "r") as f:
+                holdings = json.load(f)
+        else:
+            logger.error("--holdings file required in review mode")
+            return
+
     config = PipelineConfig(
+        mode=mode,
+        holdings=holdings,
         max_workers=args.workers,
         top_n_movers=args.top_n,
         output_dir=args.output_dir
