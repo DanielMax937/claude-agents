@@ -199,3 +199,137 @@ def test_integration_json_output_serialization():
     assert data["commodities"][0]["technical"]["overall_trend"] == "bullish"
     assert len(data["commodities"][0]["options"]) == 1
     assert data["commodities"][0]["options"][0]["expiry"] == "2025-01-15"
+
+
+def test_integration_review_mode_flow():
+    """Review mode pipeline should analyze holdings and produce recommendations."""
+    from commodity_pipeline.pipeline import Pipeline
+    from commodity_pipeline.config import PipelineConfig
+    from commodity_pipeline.models import (
+        Commodity, TechnicalSignals, TrendDirection, OptionContract, NewsItem
+    )
+    from datetime import timedelta
+
+    holdings = [
+        {"code": "CU2501-C-75000", "quantity": 2, "avg_cost": 1200},
+        {"code": "CU2501-P-73000", "quantity": 1, "avg_cost": 800}
+    ]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = PipelineConfig(mode="review", holdings=holdings, output_dir=tmpdir)
+        pipeline = Pipeline(config)
+
+        # Mock stage results
+        mock_commodities = {
+            "CU": Commodity("CU", "铜", "SHFE", "cu2501", 74520, 1.5, 2.0, -0.5)
+        }
+
+        mock_technical = {
+            "CU": TechnicalSignals(
+                "CU", "buy", "buy", 58.0, "neutral", "middle",
+                "buy", 150.0, "up", "buy", TrendDirection.BULLISH, 7
+            )
+        }
+
+        mock_options = {
+            "CU": [
+                OptionContract(
+                    "CU2501-C-75000", "CU", 75000, date.today() + timedelta(days=45), "call",
+                    1450, 1000, 0.185, 0.52, 0.00008, -12.3, 42.1, 0.15, 1430, 20
+                ),
+                OptionContract(
+                    "CU2501-P-73000", "CU", 73000, date.today() + timedelta(days=45), "put",
+                    850, 500, 0.20, -0.35, 0.00006, -8.5, 25.0, 0.12, 830, 20
+                )
+            ]
+        }
+
+        mock_news = {"CU": [
+            NewsItem("Copper demand rises", "eastmoney", "http://1", date.today(), sentiment="positive")
+        ]}
+
+        # Patch stages
+        with patch.object(pipeline.screening_stage, 'run_for_symbols', return_value=mock_commodities):
+            with patch.object(pipeline.technical_stage, 'run', new_callable=AsyncMock, return_value=mock_technical):
+                with patch.object(pipeline.options_stage, 'run', new_callable=AsyncMock, return_value=mock_options):
+                    with patch.object(pipeline.news_stage, 'run', new_callable=AsyncMock, return_value=mock_news):
+                        # Run pipeline
+                        result = asyncio.get_event_loop().run_until_complete(pipeline.run())
+
+                        # Verify structure
+                        assert "positions" in result
+                        assert len(result["positions"]) == 2
+
+                        # Verify position analysis
+                        pos1 = next(p for p in result["positions"] if p["position_code"] == "CU2501-C-75000")
+                        assert "signal" in pos1
+                        assert "confidence" in pos1
+                        assert "recommendation" in pos1
+                        assert "reason" in pos1
+
+                        # Verify scores
+                        assert "scores" in pos1
+                        assert "greeks" in pos1["scores"]
+                        assert "technical" in pos1["scores"]
+
+                        # Verify metrics
+                        assert "metrics" in pos1
+                        assert "delta" in pos1["metrics"]
+                        assert "dte" in pos1["metrics"]
+
+
+def test_integration_review_mode_terminal_output():
+    """Review mode terminal output should format positions correctly."""
+    from commodity_pipeline.pipeline import Pipeline
+    from commodity_pipeline.config import PipelineConfig
+    from commodity_pipeline.models import Commodity
+
+    holdings = [{"code": "CU2501-C-75000", "quantity": 2, "avg_cost": 1200}]
+
+    config = PipelineConfig(mode="review", holdings=holdings)
+    pipeline = Pipeline(config)
+
+    # Mock review stage result - must be async
+    async def mock_review(*args, **kwargs):
+        return [
+            {
+                "position_code": "CU2501-C-75000",
+                "signal": "bullish",
+                "confidence": 0.75,
+                "scores": {"greeks": 55, "technical": 80, "time": 65, "news": 70},
+                "metrics": {"delta": 0.52, "spot": 74520, "dte": 45, "iv": 18.5},
+                "recommendation": "HOLD",
+                "reason": "Strong bullish setup with optimal time to expiry."
+            }
+        ]
+
+    pipeline.position_review_stage.run = mock_review
+
+    # Mock commodity - must exist for pipeline to continue
+    mock_commodity = {
+        "CU": Commodity("CU", "铜", "SHFE", "cu2501", 74520, 1.5, 2.0, -0.5)
+    }
+
+    # Mock other stages
+    with patch.object(pipeline.screening_stage, 'run_for_symbols', return_value=mock_commodity):
+        with patch.object(pipeline.technical_stage, 'run', new_callable=AsyncMock, return_value={}):
+            with patch.object(pipeline.options_stage, 'run', new_callable=AsyncMock, return_value={}):
+                with patch.object(pipeline.news_stage, 'run', new_callable=AsyncMock, return_value={}):
+                    result = asyncio.get_event_loop().run_until_complete(pipeline.run())
+
+                    # Generate terminal output
+                    import io
+                    import sys
+                    old_stdout = sys.stdout
+                    sys.stdout = buffer = io.StringIO()
+
+                    pipeline.output_terminal(result)
+
+                    output = buffer.getvalue()
+                    sys.stdout = old_stdout
+
+                    # Verify output contains key elements
+                    assert "POSITION REVIEW REPORT" in output
+                    assert "CU2501-C-75000" in output
+                    assert "HOLD" in output
+                    assert "bullish" in output
