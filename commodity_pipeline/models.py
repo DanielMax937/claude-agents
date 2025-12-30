@@ -1,6 +1,6 @@
 """Data models for the commodity analysis pipeline."""
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 from enum import Enum
 
@@ -10,6 +10,12 @@ class TrendDirection(Enum):
     BULLISH = "bullish"
     BEARISH = "bearish"
     NEUTRAL = "neutral"
+
+
+class OptionType(Enum):
+    """Option type enumeration."""
+    CALL = "call"
+    PUT = "put"
 
 
 @dataclass
@@ -97,3 +103,52 @@ class StrategyRecommendation:
     breakeven: list              # List of breakeven prices
     rationale: str               # Why this strategy
     confidence: int              # 1-10
+
+
+@dataclass
+class HoldingPosition:
+    """Represents a user's options position for review."""
+    code: str                      # Full option identifier e.g., "CU2501-C-75000"
+    symbol: str                    # Underlying commodity e.g., "CU"
+    expiry: str                    # Contract expiry e.g., "2025-01" or "2025-01-15"
+    strike: float                  # Strike price
+    type: OptionType               # CALL or PUT
+    quantity: int                  # Position size (+ for long, - for short)
+    avg_cost: float                # Average entry price per contract
+    open_date: Optional[date] = None  # When position was opened
+
+    def current_pnl(self, current_price: float) -> float:
+        """Calculate unrealized P/L at current market price."""
+        return (current_price - self.avg_cost) * self.quantity
+
+    @property
+    def days_to_expiry(self) -> int:
+        """Calculate days until expiration."""
+        from datetime import datetime as dt
+        today = date.today()
+
+        # Parse expiry - handle both "YYYY-MM" and "YYYY-MM-DD" formats
+        if "-" in self.expiry:
+            parts = self.expiry.split("-")
+            if len(parts) == 2:
+                # YYYY-MM format - use last day of month
+                year, month = int(parts[0]), int(parts[1])
+                if month == 12:
+                    expiry_date = date(year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    expiry_date = date(year, month + 1, 1) - timedelta(days=1)
+            else:
+                # YYYY-MM-DD format
+                expiry_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+        else:
+            # Fallback - assume end of current year
+            expiry_date = date(today.year + 1, 1, 1) - timedelta(days=1)
+
+        return (expiry_date - today).days
+
+    def is_itm(self, spot: float) -> bool:
+        """Check if position is in-the-money."""
+        if self.type == OptionType.CALL:
+            return spot > self.strike
+        else:  # PUT
+            return spot < self.strike
