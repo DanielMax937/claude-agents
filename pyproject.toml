@@ -1,13 +1,25 @@
 [project]
 name = "claude-kit"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python toolkit for Claude Agent SDK with message formatting and skill wrapper"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "claude-agent-sdk>=0.1.18",
 ]
 
+[project.optional-dependencies]
+pipeline = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+commodity-pipeline = "commodity_pipeline.pipeline:main"
+
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 default = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
