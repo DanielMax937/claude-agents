@@ -1,11 +1,15 @@
 """Pipeline configuration."""
-from dataclasses import dataclass
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import Tuple, Dict, List, Optional, Any
 
 
 @dataclass
 class PipelineConfig:
     """Configuration for the commodity analysis pipeline."""
+
+    # Pipeline mode
+    mode: str = "discovery"            # "discovery" | "review"
+    holdings: Optional[List[Dict[str, Any]]] = None  # User's holdings for review mode
 
     # Thread pool settings
     max_workers: int = 8              # Concurrent threads per stage
@@ -27,6 +31,14 @@ class PipelineConfig:
     # News settings
     news_sources: Tuple[str, ...] = ("eastmoney", "sina")
     max_news_per_source: int = 5
+
+    # Review mode settings
+    signal_weights: Dict[str, int] = field(default_factory=lambda: {
+        "greeks": 30,
+        "technical": 30,
+        "time": 20,
+        "news": 20
+    })
 
     # Output settings
     output_dir: str = "reports"
