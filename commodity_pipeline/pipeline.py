@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from commodity_pipeline.config import PipelineConfig
 from commodity_pipeline.logger import get_logger, PipelineLogger
+from commodity_pipeline.utils.parsers import parse_holdings
 
 # Stages
 from commodity_pipeline.stages.screening import ScreeningStage
@@ -14,6 +15,7 @@ from commodity_pipeline.stages.options import OptionsStage
 from commodity_pipeline.stages.news import NewsStage
 from commodity_pipeline.stages.alerts import AlertsStage
 from commodity_pipeline.stages.strategy import StrategyStage
+from commodity_pipeline.stages.position_review import PositionReviewStage
 
 # Outputs
 from commodity_pipeline.output.terminal import TerminalOutput
@@ -37,6 +39,7 @@ class Pipeline:
         self.news_stage = NewsStage(self.config)
         self.alerts_stage = AlertsStage(self.config)
         self.strategy_stage = StrategyStage(self.config)
+        self.position_review_stage = PositionReviewStage(self.config)
 
         # Initialize outputs
         self.terminal_output = TerminalOutput(use_colors=True)
@@ -45,7 +48,15 @@ class Pipeline:
 
     async def run(self) -> Dict[str, Any]:
         """Run the complete pipeline."""
-        logger.info("Starting commodity analysis pipeline")
+        if self.config.mode == "review":
+            return await self._run_review()
+
+        # Discovery mode
+        return await self._run_discovery()
+
+    async def _run_discovery(self) -> Dict[str, Any]:
+        """Run discovery mode pipeline."""
+        logger.info("Starting commodity analysis pipeline (discovery mode)")
         self.pipeline_logger.step_start(0, "Pipeline", "Starting commodity analysis pipeline")
 
         # Step 1-4: Screening
@@ -100,16 +111,67 @@ class Pipeline:
             "strategies": strategies
         }
 
+    async def _run_review(self) -> Dict[str, Any]:
+        """Run review mode pipeline - analyze user's holdings."""
+        logger.info("Starting position review pipeline")
+        self.pipeline_logger.step_start(0, "Pipeline", "Starting position review pipeline")
+
+        # Parse holdings to extract symbols
+        holdings = parse_holdings(self.config.holdings)
+        symbols = list(set(h["symbol"] for h in holdings))
+
+        logger.info(f"Reviewing {len(holdings)} positions across {len(symbols)} symbols")
+
+        # Get commodity data for symbols
+        self.pipeline_logger.step_start(1, "Screening", f"Getting data for {len(symbols)} symbols")
+        commodities = await self.screening_stage.run_for_symbols(symbols)
+        self.pipeline_logger.step_complete(1, "Screening", f"Got {len(commodities)} commodities")
+
+        if not commodities:
+            logger.warning("No commodities found for symbols, pipeline ending early")
+            return {"positions": []}
+
+        # Technical analysis
+        self.pipeline_logger.step_start(2, "Technical", f"Running TA for {len(symbols)} symbols")
+        commodity_list = list(commodities.values())
+        technical = await self.technical_stage.run(commodity_list)
+        self.pipeline_logger.step_complete(2, "Technical", "Technical analysis complete")
+
+        # Options analysis
+        self.pipeline_logger.step_start(3, "Options", "Getting options data")
+        options = await self.options_stage.run(commodity_list)
+        self.pipeline_logger.step_complete(3, "Options", "Options analysis complete")
+
+        # News analysis
+        self.pipeline_logger.step_start(4, "News", "Scraping news")
+        news = await self.news_stage.run(commodity_list)
+        self.pipeline_logger.step_complete(4, "News", "News scraping complete")
+
+        # Position review
+        self.pipeline_logger.step_start(5, "Position Review", "Analyzing positions")
+        positions = await self.position_review_stage.run(
+            holdings, commodities, technical, options, news
+        )
+        self.pipeline_logger.step_complete(5, "Position Review", f"Reviewed {len(positions)} positions")
+
+        self.pipeline_logger.step_complete(0, "Pipeline", "Pipeline complete")
+
+        return {"positions": positions}
+
     def output_terminal(self, result: Dict[str, Any]) -> None:
         """Output results to terminal."""
-        report = self.terminal_output.format_all(
-            result["commodities"],
-            result["technical"],
-            result["options"],
-            result["news"],
-            result["strategies"],
-            result["alerts"]
-        )
+        # Check if this is review mode
+        if "positions" in result:
+            report = self.terminal_output.format_position_review(result["positions"])
+        else:
+            report = self.terminal_output.format_all(
+                result["commodities"],
+                result["technical"],
+                result["options"],
+                result["news"],
+                result["strategies"],
+                result["alerts"]
+            )
         self.terminal_output.print_report(report)
 
     def save_reports(self, result: Dict[str, Any]) -> None:

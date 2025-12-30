@@ -1,6 +1,6 @@
 """Screening stage - Steps 1-4: Get contracts, calc changes, filter top movers."""
 import asyncio
-from typing import List, Set
+from typing import List, Set, Dict
 
 from commodity_pipeline.config import PipelineConfig
 from commodity_pipeline.models import Commodity
@@ -36,6 +36,22 @@ class ScreeningStage:
         # Step 4: Deduplicate and return
         result = [c for c in all_commodities if c.code in selected]
         logger.info(f"Selected {len(result)} unique commodities")
+        return result
+
+    async def run_for_symbols(self, symbols: List[str]) -> Dict[str, Commodity]:
+        """Get commodity data for specific symbols (review mode)."""
+        logger.info(f"Getting commodity data for {len(symbols)} symbols...")
+
+        # Get all main contracts
+        all_commodities = self.futures_skill.get_main_contracts()
+
+        # Filter to requested symbols
+        result = {
+            c.code: c for c in all_commodities
+            if c.code in symbols
+        }
+
+        logger.info(f"Found {len(result)} commodities")
         return result
 
     def _filter_top_movers(self, commodities: List[Commodity], period: str) -> List[Commodity]:
