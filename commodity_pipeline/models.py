@@ -23,3 +23,31 @@ class Commodity:
     change_1d: float             # % change today
     change_3d: float             # % change last 3 days
     change_5d: float             # % change last 5 days
+
+
+@dataclass
+class OHLCVBar:
+    """Single OHLCV bar for one trading day."""
+    date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: int
+
+
+@dataclass
+class TechnicalSignals:
+    """Technical analysis results for a commodity."""
+    commodity_code: str
+    ma_signal: str               # "buy" | "sell" | "neutral"
+    macd_signal: str
+    rsi_value: float
+    rsi_signal: str
+    boll_position: str           # "above_upper" | "middle" | "below_lower"
+    kdj_signal: str
+    atr_value: float
+    obv_trend: str               # "up" | "down" | "flat"
+    cci_signal: str
+    overall_trend: TrendDirection
+    strength: int                # 1-10 score
