@@ -51,3 +51,25 @@ class TechnicalSignals:
     cci_signal: str
     overall_trend: TrendDirection
     strength: int                # 1-10 score
+
+
+@dataclass
+class OptionContract:
+    """Single option contract with Greeks and valuation."""
+    code: str                    # Option code
+    underlying: str              # Underlying commodity
+    strike: float
+    expiry: date
+    option_type: str             # "call" | "put"
+    market_price: float
+    volume: int
+    iv: float                    # Implied volatility
+    # Greeks
+    delta: float
+    gamma: float
+    theta: float
+    vega: float
+    rho: float
+    # Calculated
+    bs_value: float              # Black-Scholes theoretical value
+    mispricing: float            # market_price - bs_value

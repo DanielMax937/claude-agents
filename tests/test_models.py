@@ -73,3 +73,32 @@ def test_technical_signals_creation():
     assert signals.commodity_code == "rb2501"
     assert signals.overall_trend == TrendDirection.BULLISH
     assert signals.strength == 7
+
+
+def test_option_contract_creation():
+    """OptionContract should store option data with Greeks."""
+    from commodity_pipeline.models import OptionContract
+
+    opt = OptionContract(
+        code="rb2501-C-3600",
+        underlying="rb2501",
+        strike=3600.0,
+        expiry=date(2025, 1, 15),
+        option_type="call",
+        market_price=50.0,
+        volume=1000,
+        iv=0.25,
+        delta=0.45,
+        gamma=0.02,
+        theta=-5.0,
+        vega=10.0,
+        rho=0.5,
+        bs_value=48.0,
+        mispricing=2.0
+    )
+
+    assert opt.code == "rb2501-C-3600"
+    assert opt.option_type == "call"
+    assert opt.iv == 0.25
+    assert opt.delta == 0.45
+    assert opt.mispricing == 2.0
