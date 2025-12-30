@@ -124,7 +124,6 @@ class HoldingPosition:
     @property
     def days_to_expiry(self) -> int:
         """Calculate days until expiration."""
-        from datetime import datetime as dt
         today = date.today()
 
         # Parse expiry - handle both "YYYY-MM" and "YYYY-MM-DD" formats
