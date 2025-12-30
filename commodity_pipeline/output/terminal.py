@@ -1,5 +1,5 @@
 """Terminal output formatter with ANSI colors."""
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from commodity_pipeline.models import (
     Commodity, TechnicalSignals, TrendDirection,
@@ -34,6 +34,16 @@ class TerminalOutput:
     def _trend_color(self, is_bullish: bool) -> str:
         """Get color code for trend direction."""
         return Colors.GREEN if is_bullish else Colors.RED
+
+    def _recommendation_color(self, recommendation: str) -> str:
+        """Get color code for recommendation."""
+        if recommendation == "HOLD":
+            return Colors.GREEN
+        elif recommendation == "ADJUST":
+            return Colors.YELLOW
+        elif recommendation == "CLOSE":
+            return Colors.RED
+        return Colors.RESET
 
     def format_commodity_summary(
         self,
@@ -137,3 +147,84 @@ class TerminalOutput:
     def print_report(self, report: str) -> None:
         """Print the report to terminal."""
         print(report)
+
+    def format_position_review(self, positions: List[Dict[str, Any]]) -> str:
+        """Format position review results for terminal display."""
+        lines = []
+
+        # Header
+        lines.append(self._c(Colors.BOLD, "╔════════════════════════════════════════════════╗"))
+        lines.append(self._c(Colors.BOLD, "║         POSITION REVIEW REPORT                  ║"))
+        lines.append(self._c(Colors.BOLD, "╚════════════════════════════════════════════════╝"))
+        lines.append("")
+
+        for pos in positions:
+            code = pos.get("position_code", "UNKNOWN")
+            signal = pos.get("signal", "neutral")
+            confidence = pos.get("confidence", 0.0)
+            scores = pos.get("scores", {})
+            metrics = pos.get("metrics", {})
+            recommendation = pos.get("recommendation", "UNKNOWN")
+            reason = pos.get("reason", "")
+
+            # Position header
+            lines.append(self._c(Colors.BOLD, f"═══ {code} ═══"))
+
+            # Signal and confidence
+            is_bullish = signal == "bullish"
+            signal_colored = self._c(self._trend_color(is_bullish), signal.upper())
+            lines.append(f"Signal: {signal_colored}  |  Confidence: {int(confidence * 100)}%")
+
+            # Recommendation
+            rec_colored = self._c(self._recommendation_color(recommendation), recommendation)
+            lines.append(f"Recommendation: {rec_colored}")
+
+            # Scores breakdown
+            lines.append("")
+            lines.append(self._c(Colors.CYAN, "── Scores ──"))
+            for category, score in scores.items():
+                category_display = category.capitalize()
+                bar = self._score_bar(score)
+                lines.append(f"  {category_display}: {score}/100 [{bar}]")
+
+            # Metrics
+            if metrics:
+                lines.append("")
+                lines.append(self._c(Colors.YELLOW, "── Metrics ──"))
+                lines.append(f"  Spot: {metrics.get('spot', 'N/A')}")
+                lines.append(f"  Strike: {metrics.get('strike', 'N/A')}")
+                lines.append(f"  DTE: {metrics.get('dte', 'N/A')} days")
+                lines.append(f"  ITM Amount: {metrics.get('itm_amount', 'N/A')}")
+                lines.append("")
+                lines.append(self._c(Colors.CYAN, "  Greeks:"))
+                lines.append(f"    Delta: {metrics.get('delta', 'N/A')}")
+                lines.append(f"    Gamma: {metrics.get('gamma', 'N/A')}")
+                lines.append(f"    Theta: {metrics.get('theta', 'N/A')}")
+                lines.append(f"    Vega: {metrics.get('vega', 'N/A')}")
+                lines.append(f"    IV: {metrics.get('iv', 'N/A')}%")
+
+                if "rsi" in metrics:
+                    lines.append("")
+                    lines.append(self._c(Colors.CYAN, "  Technical:"))
+                    lines.append(f"    RSI: {metrics.get('rsi', 'N/A')}")
+                    lines.append(f"    Trend: {metrics.get('trend', 'N/A')}")
+
+            # Reason
+            if reason:
+                lines.append("")
+                lines.append(self._c(Colors.MAGENTA, "── Analysis ──"))
+                lines.append(f"  {reason}")
+
+            lines.append("")
+
+        # Footer
+        lines.append(self._c(Colors.BOLD, "═" * 50))
+        lines.append(f"Total positions reviewed: {len(positions)}")
+
+        return "\n".join(lines)
+
+    def _score_bar(self, score: int) -> str:
+        """Generate a visual score bar."""
+        filled = "█" * (score // 10)
+        empty = "░" * (10 - score // 10)
+        return f"{filled}{empty}"
