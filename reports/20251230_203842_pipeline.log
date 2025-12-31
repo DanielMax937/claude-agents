@@ -1,0 +1,14 @@
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 0 START | Pipeline | Starting commodity analysis pipeline
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 1 START | Screening | Screening commodities
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 1 DONE  | Screening | Found 1 commodities
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 2 START | Technical | Running TA for 1 commodities
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 2 DONE  | Technical | Technical analysis complete
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 3 START | Options | Getting options data
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 3 DONE  | Options | Options analysis complete
+2025-12-30 20:38:42,084 | commodity_pipeline_20251230_203842 | INFO | Step 4 START | News | Scraping news
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 4 DONE  | News | News scraping complete
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 5 START | Alerts | Getting Gmail alerts
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 5 DONE  | Alerts | Got 0 alerts
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 6 START | Strategy | Generating strategies
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 6 DONE  | Strategy | Strategy generation complete
+2025-12-30 20:38:42,085 | commodity_pipeline_20251230_203842 | INFO | Step 0 DONE  | Pipeline | Pipeline complete

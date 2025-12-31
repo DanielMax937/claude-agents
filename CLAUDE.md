@@ -129,3 +129,159 @@ AssistantMessage content blocks: TextBlock, ThinkingBlock, ToolUseBlock, ToolRes
 
 - `claude-agent-sdk>=0.1.18`
 - `python-dotenv` (for loading .env)
+
+---
+
+## Development Workflow (Superpowers)
+
+**MANDATORY**: When adding new features, updating code, refactoring, or building something, you MUST follow this workflow. Do not skip steps.
+
+### When to Use This Workflow
+
+- Adding new features
+- Updating existing functionality
+- Refactoring code
+- Building new components
+- Fixing complex bugs
+- Any non-trivial code changes
+
+### Workflow Overview
+
+```
+1. BRAINSTORM → 2. SETUP WORKSPACE → 3. WRITE PLAN → 4. EXECUTE → 5. FINISH
+```
+
+### Phase 1: Brainstorming
+
+**Invoke**: `/superpowers:brainstorm`
+
+- Understand project context (files, docs, commits)
+- Ask ONE question at a time (prefer multiple choice)
+- Propose 2-3 approaches with trade-offs
+- Present design in 200-300 word chunks for validation
+- Output: `docs/plans/YYYY-MM-DD-<topic>-design.md`
+
+### Phase 2: Setup Workspace
+
+**Skill**: `using-git-worktrees`
+
+- Create isolated git worktree on new branch
+- Run project setup
+- Verify clean test baseline
+
+### Phase 3: Write Plan
+
+**Invoke**: `/superpowers:write-plan`
+
+- Break work into bite-sized tasks (2-5 min each)
+- Each task has:
+  - Exact file paths
+  - Complete code (not "add validation")
+  - Verification steps
+- Output: `docs/plans/YYYY-MM-DD-<feature>.md`
+
+### Phase 4: Execute Plan
+
+Choose one execution mode:
+
+#### Option A: Subagent-Driven (Recommended)
+
+**Skill**: `subagent-driven-development`
+
+Best for: Independent tasks, faster iteration, same session
+
+```
+FOR EACH TASK:
+│
+├─ 1. Dispatch Implementer Subagent
+│     • Provide full task text + context
+│     • Answer any questions
+│
+├─ 2. Implementer Does TDD
+│     ┌─────┐   ┌─────┐   ┌─────────┐
+│     │ RED │ → │GREEN│ → │REFACTOR │ → Commit
+│     └─────┘   └─────┘   └─────────┘
+│
+│     ⚠️  CODE BEFORE TEST? DELETE IT.
+│     ⚠️  TEST PASSES IMMEDIATELY? WRONG TEST.
+│
+├─ 3. Spec Review (spec-reviewer-prompt.md)
+│     • Did we build what was asked?
+│     • Nothing missing? Nothing extra?
+│     • ❌ FAIL → Implementer fixes → Re-review
+│
+├─ 4. Code Quality Review (requesting-code-review)
+│     • Critical → BLOCK, fix immediately
+│     • Important → Fix before next task
+│     • Minor → Note for later
+│     • ❌ ISSUES → Implementer fixes → Re-review
+│
+└─ 5. Mark Complete → Next Task
+```
+
+#### Option B: Executing-Plans
+
+**Skill**: `executing-plans`
+
+Best for: Parallel sessions, more human oversight
+
+```
+FOR EACH BATCH (3 tasks):
+│
+├─ Task 1: TDD Cycle → Commit
+├─ Task 2: TDD Cycle → Commit
+├─ Task 3: TDD Cycle → Commit
+│
+└─ 🛑 HUMAN CHECKPOINT
+     • Review batch results
+     • Code review
+     • Approve / Request changes
+```
+
+### Phase 5: Finish Branch
+
+**Skill**: `finishing-a-development-branch`
+
+- Final code review (entire implementation)
+- Verify all tests pass
+- Options: merge / PR / keep / discard
+- Clean up worktree
+
+### TDD: The Iron Law
+
+```
+NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+```
+
+**RED → GREEN → REFACTOR cycle**:
+
+1. **RED**: Write failing test (one behavior, clear name)
+2. **Verify RED**: Run test, MUST FAIL for expected reason
+3. **GREEN**: Write minimal code to pass
+4. **Verify GREEN**: Run test, MUST PASS (all tests green)
+5. **REFACTOR**: Clean up (stay green)
+6. **Commit**
+
+**Red Flags (STOP and start over)**:
+- Code written before test
+- Test passes immediately
+- "I'll add tests later"
+- "This is too simple to test"
+
+### Code Review Classification
+
+| Level | Action |
+|-------|--------|
+| **Critical** | BLOCK - Fix before proceeding |
+| **Important** | Fix before next task |
+| **Minor** | Note for later |
+
+### Quick Reference
+
+| Phase | Command/Skill | Output |
+|-------|---------------|--------|
+| Brainstorm | `/superpowers:brainstorm` | design.md |
+| Workspace | `using-git-worktrees` | New branch |
+| Plan | `/superpowers:write-plan` | plan.md |
+| Execute | `subagent-driven-development` or `executing-plans` | Code + Tests |
+| Finish | `finishing-a-development-branch` | Merge/PR |

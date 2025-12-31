@@ -1,0 +1,38 @@
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 0 START | Pipeline | Starting position review pipeline
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 1 START | Screening | Getting data for 1 symbols
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 1 DONE  | Screening | Got 1 commodities
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 2 START | Technical | Running TA for 1 symbols
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 2 DONE  | Technical | Technical analysis complete
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 3 START | Options | Getting options data
+2025-12-30 23:02:18,187 | commodity_pipeline_20251230_230218 | INFO | Step 3 DONE  | Options | Options analysis complete
+2025-12-30 23:02:18,188 | commodity_pipeline_20251230_230218 | INFO | Step 4 START | News | Scraping news
+2025-12-30 23:02:18,188 | commodity_pipeline_20251230_230218 | INFO | Step 4 DONE  | News | News scraping complete
+2025-12-30 23:02:18,188 | commodity_pipeline_20251230_230218 | INFO | Step 5 START | Position Review | Analyzing positions
+2025-12-30 23:02:18,188 | commodity_pipeline_20251230_230218 | INFO | Step 5 DONE  | Position Review | Reviewed 1 positions
+2025-12-30 23:02:18,188 | commodity_pipeline_20251230_230218 | INFO | Step 0 DONE  | Pipeline | Pipeline complete
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 0 START | Pipeline | Starting commodity analysis pipeline
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 1 START | Screening | Screening commodities
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 1 DONE  | Screening | Found 1 commodities
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 2 START | Technical | Running TA for 1 commodities
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 2 DONE  | Technical | Technical analysis complete
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 3 START | Options | Getting options data
+2025-12-30 23:02:18,198 | commodity_pipeline_20251230_230218 | INFO | Step 3 DONE  | Options | Options analysis complete
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 4 START | News | Scraping news
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 4 DONE  | News | News scraping complete
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 5 START | Alerts | Getting Gmail alerts
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 5 DONE  | Alerts | Got 0 alerts
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 6 START | Strategy | Generating strategies
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 6 DONE  | Strategy | Strategy generation complete
+2025-12-30 23:02:18,199 | commodity_pipeline_20251230_230218 | INFO | Step 0 DONE  | Pipeline | Pipeline complete
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 0 START | Pipeline | Starting position review pipeline
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 1 START | Screening | Getting data for 1 symbols
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 1 DONE  | Screening | Got 1 commodities
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 2 START | Technical | Running TA for 1 symbols
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 2 DONE  | Technical | Technical analysis complete
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 3 START | Options | Getting options data
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 3 DONE  | Options | Options analysis complete
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 4 START | News | Scraping news
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 4 DONE  | News | News scraping complete
+2025-12-30 23:02:18,202 | commodity_pipeline_20251230_230218 | INFO | Step 5 START | Position Review | Analyzing positions
+2025-12-30 23:02:18,203 | commodity_pipeline_20251230_230218 | INFO | Step 5 DONE  | Position Review | Reviewed 1 positions
+2025-12-30 23:02:18,203 | commodity_pipeline_20251230_230218 | INFO | Step 0 DONE  | Pipeline | Pipeline complete
