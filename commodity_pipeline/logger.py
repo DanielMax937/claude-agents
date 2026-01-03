@@ -87,5 +87,29 @@ class PipelineLogger:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get a child logger for a module."""
+    """Get a child logger for a module.
+
+    Note: For logs to appear in terminal, you must either:
+    1. Create a PipelineLogger instance first (which configures the root logger), or
+    2. Call configure_logging() at startup
+    """
     return logging.getLogger(f"commodity_pipeline.{name}")
+
+
+def configure_logging(level: int = logging.INFO) -> None:
+    """Configure basic logging for commodity_pipeline modules.
+
+    Call this at startup if you want to see logs without creating a PipelineLogger.
+    """
+    logger = logging.getLogger("commodity_pipeline")
+    if not logger.handlers:
+        logger.setLevel(logging.DEBUG)
+
+        # Console handler
+        console = logging.StreamHandler()
+        console.setLevel(level)
+        console.setFormatter(logging.Formatter(
+            "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s",
+            datefmt="%H:%M:%S"
+        ))
+        logger.addHandler(console)

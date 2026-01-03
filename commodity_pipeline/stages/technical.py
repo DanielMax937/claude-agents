@@ -39,8 +39,10 @@ class TechnicalStage:
         logger.info(f"Analyzing {commodity.code}")
 
         # Step 5: Get OHLCV
+        # Use commodity.code as symbol (e.g., "CU")
+        # The API will automatically use the main contract
         ohlcv = self.futures_skill.get_ohlcv(
-            contract=commodity.main_contract,
+            symbol=commodity.code,
             days=self.config.ohlcv_days
         )
         logger.debug(f"Got {len(ohlcv)} bars for {commodity.code}")

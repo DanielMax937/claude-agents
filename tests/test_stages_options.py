@@ -5,7 +5,7 @@ from datetime import date
 
 
 def test_options_stage_process_one():
-    """_process_one should get options chain and calculate Greeks/IV/BS for top contracts."""
+    """_process_one should get options list and calculate Greeks/IV/BS for top contracts."""
     from commodity_pipeline.stages.options import OptionsStage
     from commodity_pipeline.config import PipelineConfig
     from commodity_pipeline.models import Commodity, OptionContract
@@ -13,10 +13,10 @@ def test_options_stage_process_one():
     config = PipelineConfig(top_options_by_volume=2, risk_free_rate=0.02)
     stage = OptionsStage(config)
 
-    commodity = Commodity("rb2501", "螺纹钢", "SHFE", "rb2501", 3500, 1.0, 2.0, -0.5)
+    commodity = Commodity("RB", "螺纹钢", "SHFE", "RB2501", 3500, 1.0, 2.0, -0.5)
 
-    # Mock the raw options chain (from china-futures skill)
-    mock_chain = [
+    # Mock the raw options list (from china-futures skill)
+    mock_options = [
         {"code": "rb2501C3500", "strike": 3500, "expiry": "2025-01-15",
          "type": "call", "price": 50.0, "volume": 1000},
         {"code": "rb2501C3600", "strike": 3600, "expiry": "2025-01-15",
@@ -28,7 +28,7 @@ def test_options_stage_process_one():
     # Mock Greeks result
     mock_greeks = {"delta": 0.55, "gamma": 0.02, "theta": -5.0, "vega": 10.0, "rho": 0.5}
 
-    with patch.object(stage.futures_skill, 'get_options_chain', return_value=mock_chain):
+    with patch.object(stage.futures_skill, 'get_options_list', return_value=mock_options):
         with patch.object(stage.options_skill, 'calc_greeks', return_value=mock_greeks):
             with patch.object(stage.options_skill, 'calc_iv', return_value=0.25):
                 with patch.object(stage.options_skill, 'calc_bs_price', return_value=48.0):
@@ -55,9 +55,9 @@ def test_options_stage_filters_by_volume():
     config = PipelineConfig(top_options_by_volume=1)
     stage = OptionsStage(config)
 
-    commodity = Commodity("rb2501", "螺纹钢", "SHFE", "rb2501", 3500, 1.0, 2.0, -0.5)
+    commodity = Commodity("RB", "螺纹钢", "SHFE", "RB2501", 3500, 1.0, 2.0, -0.5)
 
-    mock_chain = [
+    mock_options = [
         {"code": "opt1", "strike": 3500, "expiry": "2025-01-15",
          "type": "call", "price": 50.0, "volume": 100},
         {"code": "opt2", "strike": 3600, "expiry": "2025-01-15",
@@ -66,7 +66,7 @@ def test_options_stage_filters_by_volume():
 
     mock_greeks = {"delta": 0.5, "gamma": 0.01, "theta": -1.0, "vega": 5.0, "rho": 0.2}
 
-    with patch.object(stage.futures_skill, 'get_options_chain', return_value=mock_chain):
+    with patch.object(stage.futures_skill, 'get_options_list', return_value=mock_options):
         with patch.object(stage.options_skill, 'calc_greeks', return_value=mock_greeks):
             with patch.object(stage.options_skill, 'calc_iv', return_value=0.20):
                 with patch.object(stage.options_skill, 'calc_bs_price', return_value=30.0):
