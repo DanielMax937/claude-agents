@@ -19,7 +19,7 @@ class PipelineConfig:
     periods: Tuple[int, ...] = (1, 3, 5)  # Days to check: 1d, 3d, 5d
 
     # Technical analysis settings
-    ohlcv_days: int = 15              # Days of history
+    ohlcv_days: int = 90              # Days of history (need 60+ for MA60)
     indicators: Tuple[str, ...] = (
         "ma", "macd", "rsi", "boll", "kdj", "atr", "obv", "cci"
     )

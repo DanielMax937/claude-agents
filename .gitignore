@@ -12,3 +12,4 @@ wheels/
 
 # Git worktrees
 .worktrees/
+reports/

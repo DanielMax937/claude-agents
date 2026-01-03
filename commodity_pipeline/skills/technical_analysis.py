@@ -1,4 +1,6 @@
 """Wrapper for technical-analysis skill."""
+import tempfile
+import os
 from typing import List, Tuple
 
 from commodity_pipeline.models import TechnicalSignals, OHLCVBar, TrendDirection
@@ -17,39 +19,71 @@ class TechnicalAnalysisSkill(BaseSkillWrapper):
                 indicators: Tuple[str, ...] = ("ma", "macd", "rsi", "boll", "kdj", "atr", "obv", "cci")
                ) -> TechnicalSignals:
         """Run comprehensive technical analysis on OHLCV data."""
+        # Save OHLCV data to temp file
         csv_data = self._to_csv(ohlcv)
-        indicators_str = ",".join(indicators)
 
-        result = self._run("analyze",
-                          args=f"--data '{csv_data}' --indicators {indicators_str} --json",
-                          output_format=SkillOutputFormat.JSON)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            f.write(csv_data)
+            temp_path = f.name
+
+        try:
+            result = self._run("analyze",
+                              args=f"{temp_path} --symbol {code} --output json",
+                              output_format=SkillOutputFormat.JSON)
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
 
         data = result.output or {}
 
-        # Map string trend to enum
-        trend_map = {
-            "bullish": TrendDirection.BULLISH,
-            "bearish": TrendDirection.BEARISH,
-            "neutral": TrendDirection.NEUTRAL
-        }
-        overall_trend = trend_map.get(
-            data.get("overall_trend", "neutral").lower(),
-            TrendDirection.NEUTRAL
-        )
+        # Extract signals from the result
+        signals = data.get("signals", {})
+        patterns = data.get("patterns", {})
+
+        # Determine overall trend from signal strength
+        strength = signals.get("strength", 0)
+        if strength > 30:
+            overall_trend = TrendDirection.BULLISH
+        elif strength < -30:
+            overall_trend = TrendDirection.BEARISH
+        else:
+            overall_trend = TrendDirection.NEUTRAL
+
+        # Get MA alignment
+        ma_alignment = patterns.get("ma_alignment", {})
+        ma_signal = ma_alignment.get("alignment", "neutral")
+
+        # Get MACD signal
+        macd_signals = patterns.get("macd_signals", {})
+        macd_signal = macd_signals.get("signal", "neutral")
+
+        # Get RSI
+        rsi_signals = patterns.get("rsi_signals", {})
+        rsi_value = rsi_signals.get("RSI", 50)
+        rsi_signal = rsi_signals.get("signal", "neutral")
+
+        # Get Bollinger position
+        boll_squeeze = patterns.get("bollinger_squeeze", {})
+        boll_position = boll_squeeze.get("position", "middle")
+
+        # Get latest data for ATR
+        latest = data.get("latest_data", {})
+        atr_value = latest.get("ATR", 0)
 
         return TechnicalSignals(
             commodity_code=code,
-            ma_signal=data.get("ma_signal", "neutral"),
-            macd_signal=data.get("macd_signal", "neutral"),
-            rsi_value=float(data.get("rsi_value", 50)),
-            rsi_signal=data.get("rsi_signal", "neutral"),
-            boll_position=data.get("boll_position", "middle"),
-            kdj_signal=data.get("kdj_signal", "neutral"),
-            atr_value=float(data.get("atr_value", 0)),
-            obv_trend=data.get("obv_trend", "flat"),
-            cci_signal=data.get("cci_signal", "neutral"),
+            ma_signal=ma_signal,
+            macd_signal=macd_signal,
+            rsi_value=float(rsi_value) if rsi_value else 50.0,
+            rsi_signal=rsi_signal,
+            boll_position=boll_position,
+            kdj_signal="neutral",  # Not directly available
+            atr_value=float(atr_value) if atr_value else 0.0,
+            obv_trend="flat",  # Not directly available
+            cci_signal="neutral",  # Not directly available
             overall_trend=overall_trend,
-            strength=int(data.get("strength", 5))
+            strength=int(signals.get("strength", 0))
         )
 
     def _to_csv(self, ohlcv: List[OHLCVBar]) -> str:
@@ -57,4 +91,4 @@ class TechnicalAnalysisSkill(BaseSkillWrapper):
         lines = ["date,open,high,low,close,volume"]
         for bar in ohlcv:
             lines.append(f"{bar.date},{bar.open},{bar.high},{bar.low},{bar.close},{bar.volume}")
-        return "\\n".join(lines)
+        return "\n".join(lines)

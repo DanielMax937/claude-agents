@@ -35,10 +35,11 @@ class BaseSkillWrapper(ABC):
         pass
 
     def _run(self, script_name: str, args: str = "",
-             output_format: SkillOutputFormat = SkillOutputFormat.JSON) -> SkillResult:
+             output_format: SkillOutputFormat = SkillOutputFormat.JSON,
+             timeout: int = 120) -> SkillResult:
         """Run a skill script and return the result."""
         result = self._wrapper.run(self.skill_name, script_name, args=args,
-                                   output_format=output_format)
+                                   output_format=output_format, timeout=timeout)
         if not result.success:
             raise SkillError(self.skill_name, result.error or "Unknown error")
         return result

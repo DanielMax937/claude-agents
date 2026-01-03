@@ -8,13 +8,16 @@ dependencies = [
     "claude-agent-sdk>=0.1.18",
 ]
 
+[tool.setuptools]
+packages = ["commodity_pipeline"]
+
 [project.optional-dependencies]
 pipeline = [
     "pytest>=7.0.0",
 ]
 
 [project.scripts]
-commodity-pipeline = "commodity_pipeline.pipeline:main"
+commodity-pipeline = "commodity_pipeline.pipeline:cli"
 
 [[tool.uv.index]]
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"

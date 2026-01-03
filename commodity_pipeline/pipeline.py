@@ -264,5 +264,10 @@ async def main():
         raise
 
 
-if __name__ == "__main__":
+def cli():
+    """Sync wrapper for CLI entry point."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    cli()
