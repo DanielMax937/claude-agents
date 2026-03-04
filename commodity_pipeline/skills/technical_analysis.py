@@ -1,6 +1,8 @@
 """Wrapper for technical-analysis skill."""
 import tempfile
 import os
+import json
+import re
 from typing import List, Tuple
 
 from commodity_pipeline.models import TechnicalSignals, OHLCVBar, TrendDirection
@@ -27,15 +29,17 @@ class TechnicalAnalysisSkill(BaseSkillWrapper):
             temp_path = f.name
 
         try:
+            # Use RAW format since the script outputs mixed content
             result = self._run("analyze",
                               args=f"{temp_path} --symbol {code} --output json",
-                              output_format=SkillOutputFormat.JSON)
+                              output_format=SkillOutputFormat.RAW)
         finally:
             # Clean up temp file
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-        data = result.output or {}
+        # Parse JSON from the raw output (script prints progress messages before JSON)
+        data = self._extract_json(result.output or "")
 
         # Extract signals from the result
         signals = data.get("signals", {})
@@ -85,6 +89,28 @@ class TechnicalAnalysisSkill(BaseSkillWrapper):
             overall_trend=overall_trend,
             strength=int(signals.get("strength", 0))
         )
+
+    def _extract_json(self, output: str) -> dict:
+        """Extract JSON object from mixed output containing progress messages.
+
+        The analyze.py script prints progress messages before the JSON output.
+        This method finds and parses the JSON portion.
+        """
+        if not output:
+            return {}
+
+        # Try to find JSON object starting with {
+        # Look for the first { that starts a valid JSON object
+        for i, char in enumerate(output):
+            if char == '{':
+                try:
+                    # Try to parse from this position
+                    return json.loads(output[i:])
+                except json.JSONDecodeError:
+                    continue
+
+        # If no valid JSON found, return empty dict
+        return {}
 
     def _to_csv(self, ohlcv: List[OHLCVBar]) -> str:
         """Convert OHLCV bars to CSV format for skill input."""

@@ -153,7 +153,7 @@ class ChinaFuturesSkill(BaseSkillWrapper):
             args = f"list --underlying {underlying} --expiry {expiry} --json"
 
         result = self._run("options_list", args=args,
-                          output_format=SkillOutputFormat.JSON, timeout=60)
+                          output_format=SkillOutputFormat.JSON, timeout=600)
         # options_list returns list directly when --json is used
         return result.output if isinstance(result.output, list) else []
 

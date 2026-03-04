@@ -1,50 +1,103 @@
 #!/usr/bin/env python3
 """
-Fetch Google Alerts emails from today
+Gmail Alerts Fetcher (Auto-Auth + High Performance)
 
-This script fetches emails from googlealerts-noreply@google.com sent today
-and displays them in a clean, readable format.
+1. Tries to connect using existing token.
+2. If token is dead/missing, OPENS BROWSER to authenticate.
+3. Once authenticated, fetches latest 6 alerts and outputs JSON.
 """
 
+import os
+import sys
 import json
+import socket
 import base64
-from datetime import datetime
+import re
+import gzip
+import concurrent.futures
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 import ssl
 
-# Path to Gmail token
-TOKEN_PATH = Path.home() / '.claude/skills/gmail-reader/token.json'
+# --- DEPENDENCIES FOR AUTH ---
+# pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+# --- CONFIG ---
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+SKILL_DIR = Path('/Users/daniel/.claude/skills/gmail-reader') # Adjust if needed
+TOKEN_PATH = SKILL_DIR / 'token.json'
+CREDENTIALS_PATH = SKILL_DIR / 'credentials.json'
+TIMEOUT = 10
+MAX_EMAILS = 6
 
 
-def refresh_access_token():
-    """Refresh the access token using refresh token"""
-    with open(TOKEN_PATH) as f:
-        token_data = json.load(f)
+# --- FORCE IPv4 (Fixes macOS/Python Network Hangs) ---
+def getaddrinfo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+    return socket.orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
 
-    data = urlencode({
-        'refresh_token': token_data['refresh_token'],
-        'client_id': token_data['client_id'],
-        'client_secret': token_data['client_secret'],
-        'grant_type': 'refresh_token'
-    }).encode()
 
-    req = Request(
-        'https://oauth2.googleapis.com/token',
-        data=data,
-        method='POST'
-    )
-    req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+if hasattr(socket, 'getaddrinfo'):
+    socket.orig_getaddrinfo = socket.getaddrinfo
+    socket.getaddrinfo = getaddrinfo_ipv4
 
-    response = urlopen(req, timeout=30, context=ssl._create_unverified_context())
-    result = json.loads(response.read().decode())
 
-    return result['access_token']
+# -----------------------------------------------------
 
+def log(msg):
+    """Print to stderr so it doesn't mess up JSON output"""
+    print(msg, file=sys.stderr)
+
+
+def get_valid_credentials():
+    """
+    Handles the Authentication Logic.
+    Returns: A valid Access Token string.
+    """
+    creds = None
+
+    # 1. Load existing token
+    if TOKEN_PATH.exists():
+        try:
+            creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+        except Exception:
+            log("⚠️ Token file is corrupt. Re-authenticating...")
+
+    # 2. Check validity
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            log("🔄 Token expired. Refreshing...")
+            try:
+                creds.refresh(GoogleRequest())
+            except Exception:
+                log("⚠️ Refresh failed. Re-authenticating...")
+                creds = None  # Force re-auth
+
+        # 3. If still no valid creds, open browser
+        if not creds:
+            if not CREDENTIALS_PATH.exists():
+                log(f"❌ Error: credentials.json not found at {CREDENTIALS_PATH}")
+                log("   Please download it from Google Cloud Console.")
+                sys.exit(1)
+
+            log("🔓 Launching browser for authentication...")
+            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_PATH), SCOPES)
+            creds = flow.run_local_server(port=0)
+
+            # Save the new token
+            with open(TOKEN_PATH, 'w') as token:
+                token.write(creds.to_json())
+            log(f"✓ New credentials saved to {TOKEN_PATH}")
+
+    return creds.token
+
+
+# --- FAST API CLIENT (Raw HTTP) ---
 
 def gmail_api_get(endpoint, access_token, params=None):
-    """Make a GET request to Gmail API"""
     if params:
         query_string = urlencode(params)
         url = f'https://gmail.googleapis.com/gmail/v1/users/me/{endpoint}?{query_string}'
@@ -53,113 +106,146 @@ def gmail_api_get(endpoint, access_token, params=None):
 
     req = Request(url)
     req.add_header('Authorization', f'Bearer {access_token}')
+    req.add_header('Accept-Encoding', 'gzip')
 
-    response = urlopen(req, timeout=30, context=ssl._create_unverified_context())
-    return json.loads(response.read().decode())
+    context = ssl._create_unverified_context()
+    response = urlopen(req, timeout=TIMEOUT, context=context)
+
+    data = response.read()
+    if response.info().get('Content-Encoding') == 'gzip':
+        data = gzip.decompress(data)
+
+    return json.loads(data.decode('utf-8'))
 
 
 def extract_text_from_payload(payload):
-    """Extract plain text email body from Gmail payload"""
-    # Try direct body first
+    if not payload: return ""
     if 'body' in payload and 'data' in payload['body']:
         try:
             return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8', errors='ignore')
         except:
             pass
-
-    # Recursively search parts for plain text
     if 'parts' in payload:
         for part in payload['parts']:
-            # Prefer plain text over HTML
             if part['mimeType'] == 'text/plain' and 'data' in part['body']:
                 try:
                     return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='ignore')
                 except:
                     pass
-
-            # Recurse into nested parts
             text = extract_text_from_payload(part)
-            if text:
-                return text
-
+            if text: return text
     return ""
 
 
-def format_email(message):
-    """Format email message for display"""
-    # Extract headers
-    headers = {h['name']: h['value'] for h in message['payload']['headers']}
+def parse_alert_items(text):
+    if not text: return []
 
-    subject = headers.get('Subject', 'No Subject')
-    from_email = headers.get('From', 'Unknown')
-    date = headers.get('Date', 'Unknown')
-    body = extract_text_from_payload(message['payload'])
+    # Remove footer
+    separator_pattern = r'(- ){5,}.*'
+    match = re.search(separator_pattern, text, re.DOTALL)
+    if match: text = text[:match.start()]
 
-    return f"""
-{'='*70}
-Subject: {subject}
-From: {from_email}
-Date: {date}
-{'='*70}
+    items = []
+    pattern = re.compile(
+        r'(?P<title>\S[^\n]*)\n'  # Title
+        r'(?P<source>\S[^\n]*)\n'  # Source
+        r'(?P<summary>[\s\S]*?)'  # Summary
+        r'\n<(?P<link>https?://[^>]+)>',  # Link
+        re.MULTILINE
+    )
 
-{body}
-"""
+    for match in pattern.finditer(text):
+        title = match.group('title').strip()
+        summary = match.group('summary').replace('\n', ' ').strip()
+        if len(title) > 3:
+            items.append({
+                'title': title,
+                'source': match.group('source').strip(),
+                'summary': summary,
+                'link': match.group('link').strip()
+            })
+    return items
 
 
-def fetch_google_alerts_today():
-    """Fetch Google Alerts emails from today"""
+def process_message(msg_id, access_token):
+    try:
+        raw_msg = gmail_api_get(f'messages/{msg_id}', access_token, {
+            'format': 'full',
+            'fields': 'id,payload(headers,body,parts)'
+        })
+        headers = {h['name']: h['value'] for h in raw_msg['payload'].get('headers', [])}
+        raw_body = extract_text_from_payload(raw_msg['payload'])
+        news_items = parse_alert_items(raw_body)
 
-    # Get today's date in YYYY/MM/DD format
-    today = datetime.now().strftime('%Y/%m/%d')
+        if not news_items: return None
 
-    print(f"🔍 Fetching Google Alerts from {today}...")
-    print()
+        return {
+            "id": msg_id,
+            "subject": headers.get('Subject', 'No Subject'),
+            "date": headers.get('Date', ''),
+            "items": news_items
+        }
+    except Exception as e:
+        # log(f"Error processing {msg_id}: {e}")
+        return None
 
-    # Refresh access token
-    print("🔐 Authenticating...")
-    access_token = refresh_access_token()
-    print("✓ Authenticated")
-    print()
 
-    # Search for Google Alerts from today
-    query = f'from:googlealerts-noreply@google.com after:{today}'
+# --- MAIN FLOW ---
 
-    print(f"📧 Searching for messages: {query}")
-    messages_result = gmail_api_get('messages', access_token, {
-        'q': query,
-        'maxResults': 20
-    })
+def main():
+    log("--- STARTING SMART FETCH ---")
+
+    # 1. AUTHENTICATE (Auto-Browser if needed)
+    log("🔐 Checking credentials...")
+    try:
+        access_token = get_valid_credentials()
+        log("✓ Authenticated")
+    except Exception as e:
+        log(f"❌ Auth Failed: {e}")
+        sys.exit(1)
+
+    # 2. SEARCH
+    log(f"📧 Searching latest {MAX_EMAILS} alerts...")
+    query = 'from:googlealerts-noreply@google.com'
+    try:
+        messages_result = gmail_api_get('messages', access_token, {
+            'q': query,
+            'maxResults': MAX_EMAILS
+        })
+    except Exception as e:
+        log(f"❌ API Call Failed: {e}")
+        sys.exit(1)
 
     messages = messages_result.get('messages', [])
-    print(f"✓ Found {len(messages)} messages")
-    print()
+    log(f"   Found {len(messages)} emails")
 
     if not messages:
-        print("No Google Alerts found for today.")
+        print("[]")
         return
 
-    # Fetch full details for each message
-    for i, msg in enumerate(messages, 1):
-        print(f"📥 Fetching message {i}/{len(messages)}...")
-        full_message = gmail_api_get(f'messages/{msg["id"]}', access_token, {
-            'format': 'full'
-        })
-        print(f"✓ Retrieved")
+    # 3. FETCH PARALLEL
+    log(f"📥 Fetching & Parsing...")
+    final_data = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_EMAILS) as executor:
+        future_to_msg = {
+            executor.submit(process_message, msg['id'], access_token): msg
+            for msg in messages
+        }
+        for future in concurrent.futures.as_completed(future_to_msg):
+            try:
+                data = future.result()
+                if data: final_data.append(data)
+            except Exception:
+                pass
 
-        # Display formatted email
-        print(format_email(full_message))
-        print()
+    log("✓ Done. Outputting JSON...")
+    print(json.dumps(final_data, indent=2, ensure_ascii=False))
+
 
 if __name__ == '__main__':
     try:
-        fetch_google_alerts_today()
-    except FileNotFoundError:
-        print("❌ Error: Token file not found")
-        print(f"   Expected at: {TOKEN_PATH}")
-        print("\nPlease run the Gmail skill setup first:")
-        print("  cd ~/.claude/skills/gmail-reader")
-        print("  python scripts/setup_auth.py")
+        main()
+    except KeyboardInterrupt:
+        log("\n🛑 Script cancelled by user.")
     except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+        log(f"Fatal Error: {e}")
